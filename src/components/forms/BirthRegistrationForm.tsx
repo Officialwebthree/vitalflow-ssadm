@@ -6,8 +6,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/hooks/use-toast';
 import { Calendar, User, MapPin, Phone, Mail, Building } from 'lucide-react';
+import { registrationStore } from '@/lib/registrationStore';
+import { useNavigate } from 'react-router-dom';
 
 export function BirthRegistrationForm() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     childFirstName: '',
@@ -44,15 +47,21 @@ export function BirthRegistrationForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Generate registration number
-    const registrationNumber = `BRN-${Date.now()}`;
+    
+    // Save to localStorage
+    const fullName = `${formData.childFirstName} ${formData.childMiddleName} ${formData.childLastName}`.trim();
+    const registration = registrationStore.add({
+      type: 'Birth',
+      name: fullName,
+      data: formData
+    });
     
     toast({
       title: "Registration Submitted Successfully",
-      description: `Reference Number: ${registrationNumber}. You will receive confirmation via email.`,
+      description: `Reference Number: ${registration.id}. You will receive confirmation via email.`,
     });
     
-    // Reset form
+    // Reset form and navigate home
     setCurrentStep(1);
     setFormData({
       childFirstName: '',
@@ -82,6 +91,8 @@ export function BirthRegistrationForm() {
       hospitalName: '',
       doctorName: '',
     });
+    
+    setTimeout(() => navigate('/'), 2000);
   };
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));

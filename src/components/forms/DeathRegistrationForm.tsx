@@ -7,8 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from '@/hooks/use-toast';
 import { User, MapPin, Phone, Heart, Building } from 'lucide-react';
+import { registrationStore } from '@/lib/registrationStore';
+import { useNavigate } from 'react-router-dom';
 
 export function DeathRegistrationForm() {
+  const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     deceasedFirstName: '',
@@ -44,16 +47,51 @@ export function DeathRegistrationForm() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    // Generate registration number
-    const registrationNumber = `DRN-${Date.now()}`;
+    
+    // Save to localStorage
+    const fullName = `${formData.deceasedFirstName} ${formData.deceasedMiddleName} ${formData.deceasedLastName}`.trim();
+    const registration = registrationStore.add({
+      type: 'Death',
+      name: fullName,
+      data: formData
+    });
     
     toast({
       title: "Registration Submitted Successfully",
-      description: `Reference Number: ${registrationNumber}. You will receive confirmation via email.`,
+      description: `Reference Number: ${registration.id}. You will receive confirmation via email.`,
     });
     
-    // Reset form
+    // Reset form and navigate home
     setCurrentStep(1);
+    setFormData({
+      deceasedFirstName: '',
+      deceasedMiddleName: '',
+      deceasedLastName: '',
+      dateOfBirth: '',
+      dateOfDeath: '',
+      timeOfDeath: '',
+      placeOfDeath: '',
+      gender: '',
+      nationalId: '',
+      maritalStatus: '',
+      occupation: '',
+      causeOfDeath: '',
+      mannerOfDeath: '',
+      nextOfKinName: '',
+      nextOfKinRelationship: '',
+      nextOfKinNationalId: '',
+      nextOfKinPhone: '',
+      nextOfKinEmail: '',
+      street: '',
+      city: '',
+      state: '',
+      postalCode: '',
+      hospitalName: '',
+      doctorName: '',
+      medicalCertificateNumber: '',
+    });
+    
+    setTimeout(() => navigate('/'), 2000);
   };
 
   const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, 4));

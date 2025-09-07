@@ -13,25 +13,27 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-const monthlyData = [
-  { month: 'Jan', births: 245, deaths: 120 },
-  { month: 'Feb', births: 312, deaths: 142 },
-  { month: 'Mar', births: 289, deaths: 135 },
-  { month: 'Apr', births: 334, deaths: 128 },
-  { month: 'May', births: 298, deaths: 145 },
-  { month: 'Jun', births: 367, deaths: 139 },
-];
-
-const recentRegistrations = [
-  { id: 'BRN-2024001', type: 'Birth', name: 'John Michael Doe', status: 'pending', date: '2024-03-20' },
-  { id: 'DRN-2024001', type: 'Death', name: 'Jane Smith', status: 'approved', date: '2024-03-19' },
-  { id: 'BRN-2024002', type: 'Birth', name: 'Emily Johnson', status: 'verified', date: '2024-03-19' },
-  { id: 'DRN-2024002', type: 'Death', name: 'Robert Brown', status: 'pending', date: '2024-03-18' },
-  { id: 'BRN-2024003', type: 'Birth', name: 'Sarah Williams', status: 'approved', date: '2024-03-18' },
-];
+import { registrationStore } from '@/lib/registrationStore';
+import { useEffect, useState } from 'react';
 
 const Dashboard = () => {
+  const [stats, setStats] = useState(registrationStore.getStats());
+  const [monthlyData, setMonthlyData] = useState(registrationStore.getMonthlyData());
+  const [recentRegistrations, setRecentRegistrations] = useState(registrationStore.getAll());
+
+  useEffect(() => {
+    // Refresh data on component mount and set up interval
+    const refreshData = () => {
+      setStats(registrationStore.getStats());
+      setMonthlyData(registrationStore.getMonthlyData());
+      setRecentRegistrations(registrationStore.getAll().slice(-5).reverse());
+    };
+
+    refreshData();
+    const interval = setInterval(refreshData, 5000); // Refresh every 5 seconds
+
+    return () => clearInterval(interval);
+  }, []);
   return (
     <AppLayout>
       <div className="p-6 space-y-6">
@@ -48,10 +50,9 @@ const Dashboard = () => {
               <Baby className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1,893</div>
+              <div className="text-2xl font-bold">{stats.totalBirths}</div>
               <p className="text-xs text-muted-foreground">
-                <TrendingUp className="inline h-3 w-3 mr-1" />
-                +12% from last month
+                Total birth registrations
               </p>
             </CardContent>
           </Card>
@@ -62,10 +63,9 @@ const Dashboard = () => {
               <Heart className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">809</div>
+              <div className="text-2xl font-bold">{stats.totalDeaths}</div>
               <p className="text-xs text-muted-foreground">
-                <TrendingUp className="inline h-3 w-3 mr-1" />
-                +3% from last month
+                Total death registrations
               </p>
             </CardContent>
           </Card>
@@ -76,7 +76,7 @@ const Dashboard = () => {
               <Clock className="h-4 w-4 text-warning" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">47</div>
+              <div className="text-2xl font-bold">{stats.pendingApprovals}</div>
               <p className="text-xs text-muted-foreground">
                 Requires immediate attention
               </p>
@@ -89,9 +89,9 @@ const Dashboard = () => {
               <UserCheck className="h-4 w-4 text-success" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">23</div>
+              <div className="text-2xl font-bold">{stats.verifiedToday}</div>
               <p className="text-xs text-muted-foreground">
-                Average processing: 2 days
+                Verified today
               </p>
             </CardContent>
           </Card>
@@ -146,38 +146,46 @@ const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {recentRegistrations.map((registration) => (
-                <div key={registration.id} className="flex items-center justify-between p-4 border rounded-lg">
-                  <div className="flex items-center gap-4">
-                    {registration.type === 'Birth' ? (
-                      <Baby className="h-8 w-8 text-primary" />
-                    ) : (
-                      <Heart className="h-8 w-8 text-secondary" />
-                    )}
-                    <div>
-                      <p className="font-medium">{registration.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {registration.id} • {new Date(registration.date).toLocaleDateString()}
-                      </p>
+              {recentRegistrations.length === 0 ? (
+                <div className="text-center py-8 text-muted-foreground">
+                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p>No registrations yet</p>
+                  <p className="text-sm">New registrations will appear here</p>
+                </div>
+              ) : (
+                recentRegistrations.map((registration) => (
+                  <div key={registration.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div className="flex items-center gap-4">
+                      {registration.type === 'Birth' ? (
+                        <Baby className="h-8 w-8 text-primary" />
+                      ) : (
+                        <Heart className="h-8 w-8 text-secondary" />
+                      )}
+                      <div>
+                        <p className="font-medium">{registration.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {registration.id} • {new Date(registration.date).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <Badge 
+                        variant={
+                          registration.status === 'approved' ? 'success' :
+                          registration.status === 'pending' ? 'warning' :
+                          'default'
+                        }
+                      >
+                        {registration.status === 'pending' && <Clock className="mr-1 h-3 w-3" />}
+                        {registration.status === 'approved' && <CheckCircle className="mr-1 h-3 w-3" />}
+                        {registration.status === 'verified' && <UserCheck className="mr-1 h-3 w-3" />}
+                        {registration.status}
+                      </Badge>
+                      <Button size="sm" variant="outline">View Details</Button>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <Badge 
-                      variant={
-                        registration.status === 'approved' ? 'success' :
-                        registration.status === 'pending' ? 'warning' :
-                        'default'
-                      }
-                    >
-                      {registration.status === 'pending' && <Clock className="mr-1 h-3 w-3" />}
-                      {registration.status === 'approved' && <CheckCircle className="mr-1 h-3 w-3" />}
-                      {registration.status === 'verified' && <UserCheck className="mr-1 h-3 w-3" />}
-                      {registration.status}
-                    </Badge>
-                    <Button size="sm" variant="outline">View Details</Button>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </CardContent>
         </Card>
